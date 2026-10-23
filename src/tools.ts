@@ -273,8 +273,8 @@ export function makeAshInspect(deps: ToolDeps, zod: ZodLike): ToolDefinition {
     description:
       "Ask the ash_agent_tools daemon about the compiled Ash contract. Targets: `Module` (resource description), `Module/action` (action input contract), `path.ex:LINE` (Ash context at a source position), or a bare fragment (semantic symbol search). include: references / policies / legend. Read-only; answers with compiled truth incl. transformer-injected declarations.",
     parameters: zod.object({
-      target: zod.string().describe("Module, Module/action, path.ex[:LINE], or search fragment"),
-      include: zod.enum(["references", "policies", "legend"]).array().optional().describe("extras: references, policies, ~legend"),
+      target: zod.string(),
+      include: zod.enum(["references", "policies", "legend"]).array().optional(),
     }),
     hidden: false,
     defaultInactive: false,
@@ -387,13 +387,13 @@ export function makeAshEdit(deps: ToolDeps, zod: ZodLike): ToolDefinition {
       "Semantic edit of an Ash DSL entity via `mix ash_agent.edit` — the only write path for DSL entities. Ops: replace|insert-before|insert-after|delete NAME_PATH, create SECTION_PATH (body = full entity source), or batch (array of ops). Dry-run by default: returns the planned diff + shape digest. write:true requires expected_digest from the dry-run; a post-edit gate recompiles and auto-reverts on failure. Refuses transformer-injected (synthetic) entities.",
     parameters: zod.object({
       op: zod.enum(["replace", "insert-before", "insert-after", "delete", "create", "batch"]),
-      target: zod.string().describe("name path (Module/section/entity) or section path (Module/section) for create"),
-      body: zod.string().optional().describe("full entity source, e.g. `update :check_in do accept [] end`"),
-      anchor: zod.string().optional().describe("name path of an existing entity to place next to"),
+      target: zod.string(),
+      body: zod.string().optional(),
+      anchor: zod.string().optional(),
       position: zod.enum(["before", "after"]).optional(),
-      batch: zod.array(opSchema).optional().describe("op batch for op:'batch'"),
+      batch: zod.array(opSchema).optional(),
       write: zod.boolean().optional(),
-      expected_digest: zod.string().optional().describe("digest from the dry-run; required with write:true"),
+      expected_digest: zod.string().optional(),
     }),
     hidden: false,
     defaultInactive: false,
@@ -463,7 +463,7 @@ export function makeExCheck(deps: ToolDeps, zod: ZodLike): ToolDefinition {
     description:
       "Verification ladder for Elixir/Ash edits. fast: iron-laws judge on the working-tree diff (seconds). focused: compile --warnings-as-errors + tests mapped from changed lib modules + laws. complete: format + compile + test + laws (or the project's configured checks, e.g. mix precommit). Records evidence consumed by the session-stop gate — run focused or complete after editing .ex files.",
     parameters: zod.object({
-      level: zod.enum(["fast", "focused", "complete"]).describe("fast < focused < complete"),
+      level: zod.enum(["fast", "focused", "complete"]),
     }),
     hidden: false,
     defaultInactive: false,
