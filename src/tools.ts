@@ -182,7 +182,7 @@ export function makeExDoctor(deps: ToolDeps, zod: ZodLike): ToolDefinition {
     name: "ex_doctor",
     label: "Elixir Workbench Doctor",
     description:
-      "Whole-stack health for Ash/Elixir work: ash_agent_tools daemon (reachability + tool count + freshness), tidewave, expert LSP binary, serena config, mix, ash_agent_tools dep. Never boots anything. Run this first when daemon-backed tools fail.",
+      "Whole-stack health for Ash/Elixir work: ash_agent_tools daemon (reachability + tool count + freshness), tidewave, expert LSP binary, serena config, mix, ash_agent_tools dep, usage-rules sync drift (AGENTS.md/.claude-skills vs locked deps). Never boots the application. Run this first when daemon-backed tools fail.",
     parameters: zod.object({ verbose: zod.boolean().optional() }),
     hidden: false,
     defaultInactive: false,
@@ -252,6 +252,8 @@ export function makeExDoctor(deps: ToolDeps, zod: ZodLike): ToolDefinition {
         detail: hasDep ? "declared in mix.exs (edit CLI + daemon tools available)" : "not declared in mix.exs",
       });
 
+      checks.push(await usageRulesCheck(deps, ctx.cwd));
+
       const lines = checks.map((c) => `${c.status.toUpperCase().padEnd(8)} ${c.name} — ${c.detail}`);
       if (warning !== undefined) lines.push(`WARN     ${warning}`);
       const anyDown = checks.some((c) => c.status === "down");
@@ -259,6 +261,41 @@ export function makeExDoctor(deps: ToolDeps, zod: ZodLike): ToolDefinition {
       const headline = allOk ? "ex_doctor: all checks ok" : anyDown ? "ex_doctor: DOWN present (see lines)" : "ex_doctor: degraded (see lines)";
       return text(`${headline}\n${lines.join("\n")}`, { checks }, anyDown);
     },
+  };
+}
+
+/**
+ * AGENTS.md/.claude-skills drift against the locked deps: the same check
+ * keystone CI runs (scripts/usage-rules-check.sh). A mix.lock bump changes
+ * what the generated sections should say; agents keep reasoning from the
+ * stale text until someone runs the sync — surface it here first.
+ */
+async function usageRulesCheck(deps: ToolDeps, cwd: string): Promise<DoctorCheck> {
+  let hasDep = false;
+  try {
+    hasDep = (await Bun.file(`${cwd}/mix.exs`).text()).includes("usage_rules");
+  } catch {
+    // unreadable mix.exs
+  }
+  if (!hasDep) {
+    return { name: "usage-rules sync", status: "ok", detail: "no usage_rules dep; generated agent docs not managed here" };
+  }
+  let res;
+  try {
+    // `env` (not bash -c) to inject MIX_ENV=dev: usage_rules-generated
+    // sections can come from dev-only deps; under :test they vanish and
+    // the check would report drift that is not there.
+    res = await deps.exec("env", ["MIX_ENV=dev", "mix", "usage_rules.sync", "--check"], { cwd, timeout: 90_000 });
+  } catch (err) {
+    return { name: "usage-rules sync", status: "down", detail: `spawn failed: ${err instanceof Error ? err.message : String(err)}` };
+  }
+  if (res.code === 0) {
+    return { name: "usage-rules sync", status: "ok", detail: "AGENTS.md and .claude/skills match the locked dependencies" };
+  }
+  return {
+    name: "usage-rules sync",
+    status: "degraded",
+    detail: `AGENTS.md/.claude/skills are out of date with the locked deps — run: devenv shell -- mix usage_rules.sync --yes, then git add AGENTS.md .claude/skills (${(res.stderr || res.stdout).trim().slice(0, 160)})`,
   };
 }
 

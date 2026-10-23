@@ -94,8 +94,11 @@ of the `iex -S mix phx.server` VM).
 - or a service manager: `devenv run ash-agent` equivalent
 
 `ex_doctor` reports daemon reachability, source-freshness (`ash_reload`
-when stale), tidewave, the `expert` LSP binary, serena config, `mix`, and
-the `ash_agent_tools` dep. It never boots anything itself.
+when stale), tidewave, the `expert` LSP binary, serena config, `mix`,
+the `ash_agent_tools` dep, and usage-rules sync drift
+(`MIX_ENV=dev mix usage_rules.sync --check` — the same gate keystone CI
+runs, surfaced before an agent reasons from stale AGENTS.md text). It
+never boots the application itself.
 
 ## Development
 
