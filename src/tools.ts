@@ -309,7 +309,7 @@ export function makeAshInspect(deps: ToolDeps, zod: ZodLike): ToolDefinition {
           primary = res;
         } else {
           // unknown-action: surface did_you_mean, fall back to search on the leaf
-          const search = await runCall("ash_search", { query: parsed.leaf });
+          const search = await runCall("ash_search", { term: parsed.leaf });
           primary = {
             ok: true,
             down: false,
@@ -325,7 +325,7 @@ export function makeAshInspect(deps: ToolDeps, zod: ZodLike): ToolDefinition {
         resourceHint = parsed.module;
         primary = await runCall("ash_describe", { resource: parsed.module });
       } else {
-        primary = await runCall("ash_search", { query: parsed.query });
+        primary = await runCall("ash_search", { term: parsed.query });
       }
 
       if (!primary.ok) {
