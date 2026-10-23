@@ -274,7 +274,7 @@ export function makeAshInspect(deps: ToolDeps, zod: ZodLike): ToolDefinition {
       "Ask the ash_agent_tools daemon about the compiled Ash contract. Targets: `Module` (resource description), `Module/action` (action input contract), `path.ex:LINE` (Ash context at a source position), or a bare fragment (semantic symbol search). include: references / policies / legend. Read-only; answers with compiled truth incl. transformer-injected declarations.",
     parameters: zod.object({
       target: zod.string(),
-      include: zod.enum(["references", "policies", "legend"]).array().optional(),
+      include: zod.array(zod.enum(["references", "policies", "legend"])).optional(),
     }),
     hidden: false,
     defaultInactive: false,
