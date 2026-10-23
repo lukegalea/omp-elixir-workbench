@@ -1,0 +1,13 @@
+{
+  "name": "omp-elixir-workbench",
+  "owner": { "name": "Luke Galea" },
+  "plugins": [
+    {
+      "name": "omp-elixir-workbench",
+      "description": "Ash + Elixir coding-workflow enforcement for oh-my-pi",
+      "source": "./",
+      "category": "development",
+      "homepage": "https://github.com/lukegalea/omp-elixir-workbench"
+    }
+  ]
+}

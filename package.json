@@ -1,0 +1,31 @@
+{
+  "name": "omp-elixir-workbench",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "Ash + Elixir coding-workflow enforcement for oh-my-pi: routing gates, ash_agent_tools composition, semantic DSL edits, verification evidence",
+  "omp": {
+    "extensions": ["./src/index.ts"],
+    "skills": ["./skills"]
+  },
+  "pi": {
+    "extensions": ["./src/index.ts"],
+    "skills": ["./skills"]
+  },
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.4",
+    "typescript": "^5"
+  },
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "elixir",
+    "ash",
+    "ash_agent_tools",
+    "expert-lsp"
+  ]
+}
