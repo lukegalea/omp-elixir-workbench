@@ -3,7 +3,14 @@ name: ex-routing
 description: Use when writing or reviewing Elixir or Ash code in this project — routes Ash DSL questions to ash_agent_tools daemon tools, plain Elixir symbols to the lsp tool (Expert), runtime behavior to Tidewave, and verification to ex_check. Includes the ash_edit dry-run → digest → write handshake.
 ---
 
-# Ash/Elixir routing
+# Ash/Elixir routing (oh-my-pi sessions)
+
+**Scope:** this skill is loaded in oh-my-pi (omp) sessions. Claude Code
+sessions follow `.claude/skills/ash-discipline` instead — its serena rule
+is the right one there. omp defaults to the native `lsp` tool (Expert runs
+with the session); set `symbolRoute: "serena"` in `.omp/ex-workbench.json`
+to steer omp's nudges to serena's `find_symbol` /
+`find_referencing_symbols` instead.
 
 Pick the tool by question type, not habit. Text search cannot see
 transformer-injected DSL declarations (defaults, computed actions) or the
