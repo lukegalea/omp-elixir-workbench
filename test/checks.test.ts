@@ -34,6 +34,7 @@ function deps(
     cwd: "/proj",
     config,
     fileExists: async () => false,
+    mixArgv: async () => ["mix"],
     findTestCandidates: async () => [],
     ...overrides,
   };

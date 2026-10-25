@@ -33,6 +33,12 @@ export interface ChecksReport {
 export interface CheckDeps {
   exec: ExecFn;
   cwd: string;
+  /**
+   * How to run mix here: ["mix"] when it is on PATH, ["devenv","shell","--","mix"]
+   * for devenv projects on a host without devenv activated. Every ladder stage
+   * must go through it or the run dies on PATH alone.
+   */
+  mixArgv(): Promise<string[]>;
   /** test/**\/<base>_test.exs candidates for one changed lib module. */
   findTestCandidates(base: string): Promise<string[]>;
   fileExists(p: string): Promise<boolean>;
@@ -68,7 +74,8 @@ async function runCommand(
 }
 
 /** The one sanctioned `bash -c`: fixed string, cwd = repo root. */
-const LAWS_DIFF_COMMAND = ["bash", ["-c", "git diff HEAD | mix ash_agent.laws - --diff"]] as const;
+const LAWS_DIFF_PIPELINE = (mixArgv: string[]): string =>
+  `git diff HEAD | ${mixArgv.join(" ")} ash_agent.laws - --diff`;
 
 async function lawsCheck(deps: CheckDeps): Promise<CheckResult> {
   let diffEmpty: boolean;
@@ -84,7 +91,8 @@ async function lawsCheck(deps: CheckDeps): Promise<CheckResult> {
   if (diffEmpty) {
     return { name: "iron-laws (diff)", status: "not_run", summary: "", reason: "no working-tree diff" };
   }
-  const res = await runCommand(deps, "iron-laws (diff)", LAWS_DIFF_COMMAND[0], [...LAWS_DIFF_COMMAND[1]]);
+  const mixArgv = await deps.mixArgv();
+  const res = await runCommand(deps, "iron-laws (diff)", "bash", ["-c", LAWS_DIFF_PIPELINE(mixArgv)]);
   if (res.status === "failed") {
     const violations = parseLawsViolations(res.summary);
     if (violations !== undefined) {
@@ -148,19 +156,20 @@ async function focusedTestsCheck(deps: CheckDeps): Promise<CheckResult> {
       risk: `no test files derived for changed lib modules: ${changed.slice(0, 5).join(", ")}`,
     };
   }
-  return runCommand(deps, "focused tests", "mix", ["test", ...unique], 900_000);
+  const argv = await deps.mixArgv();
+  return runCommand(deps, "focused tests", argv[0]!, [...argv.slice(1), "test", ...unique], 900_000);
 }
 
-function completeCommands(deps: CheckDeps): Array<{ name: string; command: string; args: string[] }> {
+function completeCommands(deps: CheckDeps, mixArgv: string[]): Array<{ name: string; command: string; args: string[] }> {
   const configured = deps.config.checks.complete;
   if (configured && configured.length > 0) {
     return configured.map((check) => ({ name: check.name, command: check.argv[0]!, args: check.argv.slice(1) }));
   }
-  const cmds: Array<{ name: string; command: string; args: string[] }> = [
-    { name: "format", command: "mix", args: ["format", "--check-formatted"] },
-    { name: "compile", command: "mix", args: ["compile", "--warnings-as-errors"] },
+  const mix = (args: string[]) => ({ command: mixArgv[0]!, args: [...mixArgv.slice(1), ...args] });
+  return [
+    { name: "format", ...mix(["format", "--check-formatted"]) },
+    { name: "compile", ...mix(["compile", "--warnings-as-errors"]) },
   ];
-  return cmds;
 }
 
 export async function runChecks(level: CheckLevel, deps: CheckDeps): Promise<ChecksReport> {
@@ -170,22 +179,26 @@ export async function runChecks(level: CheckLevel, deps: CheckDeps): Promise<Che
   if (level === "fast") {
     checks.push(await lawsCheck(deps));
   } else if (level === "focused") {
-    checks.push(await runCommand(deps, "compile", "mix", ["compile", "--warnings-as-errors"]));
+    const argv = await deps.mixArgv();
+    checks.push(await runCommand(deps, "compile", argv[0]!, [...argv.slice(1), "compile", "--warnings-as-errors"]));
     checks.push(await focusedTestsCheck(deps));
     checks.push(await lawsCheck(deps));
   } else {
+    const argv = await deps.mixArgv();
+    const mixRun = (name: string, args: string[], timeoutMs?: number) =>
+      runCommand(deps, name, argv[0]!, [...argv.slice(1), ...args], timeoutMs);
     const configured = deps.config.checks.complete;
     if (configured && configured.length > 0) {
-      for (const cmd of completeCommands(deps)) {
+      for (const cmd of completeCommands(deps, argv)) {
         checks.push(await runCommand(deps, cmd.name, cmd.command, cmd.args));
       }
     } else {
-      checks.push(await runCommand(deps, "format", "mix", ["format", "--check-formatted"]));
-      checks.push(await runCommand(deps, "compile", "mix", ["compile", "--warnings-as-errors"]));
+      checks.push(await mixRun("format", ["format", "--check-formatted"]));
+      checks.push(await mixRun("compile", ["compile", "--warnings-as-errors"]));
       if (await deps.fileExists(`${deps.cwd}/.credo.exs`)) {
-        checks.push(await runCommand(deps, "credo", "mix", ["credo", "--strict"]));
+        checks.push(await mixRun("credo", ["credo", "--strict"]));
       }
-      checks.push(await runCommand(deps, "test", "mix", ["test"], 1_200_000));
+      checks.push(await mixRun("test", ["test"], 1_200_000));
     }
     checks.push(await lawsCheck(deps));
   }
