@@ -136,6 +136,26 @@ async function commandOnPath(deps: ToolDeps, command: string): Promise<string | 
   return null;
 }
 
+/**
+ * How to invoke mix for this project. Bare `mix` when it is on PATH (the
+ * session already activated devenv); `devenv shell -- mix` when the project
+ * is a devenv project and devenv exists — devenv projects only expose mix
+ * inside the shell, so the wrapper is what makes the verification ladder
+ * runnable from a host that has not activated devenv. `unresolved` keeps
+ * the old bare-mix shape so failures read exactly as before.
+ */
+export type MixInvocation = { argv: string[]; via: "path" | "devenv" | "unresolved" };
+
+export async function resolveMixArgv(deps: ToolDeps, cwd: string): Promise<MixInvocation> {
+  if (await commandOnPath(deps, "mix")) return { argv: ["mix"], via: "path" };
+  const devenvProject =
+    (await fileExists(`${cwd}/devenv.nix`)) || (await isDirectory(`${cwd}/.devenv`));
+  if (devenvProject && (await commandOnPath(deps, "devenv"))) {
+    return { argv: ["devenv", "shell", "--", "mix"], via: "devenv" };
+  }
+  return { argv: ["mix"], via: "unresolved" };
+}
+
 /** Newest mtime over Elixir sources under lib/ and config/ (cap 2000 entries). */
 export async function scanNewestMtime(cwd: string): Promise<number | null> {
   let newest: number | null = null;
@@ -237,8 +257,17 @@ export function makeExDoctor(deps: ToolDeps, zod: ZodLike): ToolDefinition {
           : `not configured; symbolRoute=${config.symbolRoute} uses the native lsp tool`,
       });
 
-      const mixPath = await commandOnPath(deps, "mix");
-      checks.push({ name: "mix", status: mixPath ? "ok" : "down", detail: mixPath ?? "mix not on PATH (activate devenv)" });
+      const mix = await resolveMixArgv(deps, ctx.cwd);
+      checks.push({
+        name: "mix",
+        status: mix.via === "unresolved" ? "down" : "ok",
+        detail:
+          mix.via === "devenv"
+            ? "bare mix not on PATH; devenv project — ladder runs via `devenv shell -- mix`"
+            : mix.via === "path"
+              ? "mix on PATH"
+              : "mix not on PATH (activate devenv)",
+      });
 
       let hasDep = false;
       try {
@@ -513,6 +542,7 @@ export function makeExCheck(deps: ToolDeps, zod: ZodLike): ToolDefinition {
         cwd: ctx.cwd,
         config,
         fileExists,
+        mixArgv: async () => (await resolveMixArgv(deps, ctx.cwd)).argv,
         async findTestCandidates(base: string): Promise<string[]> {
           const found: string[] = [];
           const glob = new Glob(`test/**/${base}`);
