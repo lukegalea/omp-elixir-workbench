@@ -1,17 +1,18 @@
 import { describe, test, expect } from "bun:test";
 import { runChecks, changedLibModules, parseEvidence, type CheckDeps, type CheckLevel } from "../src/checks.ts";
 import { DEFAULT_CONFIG, type WorkbenchConfig } from "../src/config.ts";
-import type { ExecFn, ExecResult } from "../src/omp-types.ts";
+import type { ExecFn, ExecOptions, ExecResult } from "../src/omp-types.ts";
 
 interface Call {
   command: string;
   args: string[];
+  options?: ExecOptions;
 }
 
 function fakeExec(routes: Array<{ match: (command: string, args: string[]) => boolean; result: ExecResult }>): { exec: ExecFn; calls: Call[] } {
   const calls: Call[] = [];
-  const exec: ExecFn = async (command, args) => {
-    calls.push({ command, args });
+  const exec: ExecFn = async (command, args, options) => {
+    calls.push({ command, args, options });
     const hit = routes.find((r) => r.match(command, args));
     return hit ? hit.result : { stdout: "", stderr: "", code: 0, killed: false };
   };
@@ -147,7 +148,52 @@ describe("runChecks complete", () => {
     const report = await runChecks("complete", d);
     expect(report.checks.map((c) => c.name)).toEqual(["mix precommit", "iron-laws (diff)"]);
     expect(report.passed).toBe(true);
-    expect(d.calls.some((c) => c.command === "mix" && c.args[0] === "precommit")).toBe(true);
+    const routed = d.calls.find((c) => c.command === "mix" && c.args[0] === "precommit");
+    expect(routed?.options?.timeout).toBe(1_800_000);
+  });
+
+  test("configured mix entry routes through the resolved mixArgv (devenv)", async () => {
+    const config: WorkbenchConfig = {
+      ...DEFAULT_CONFIG,
+      checks: { complete: [{ name: "mix precommit", argv: ["mix", "precommit"] }] },
+    };
+    const d = deps(
+      [
+        { match: (c, a) => c === "devenv" && a[0] === "shell", result: { stdout: "precommit ok", stderr: "", code: 0, killed: false } },
+        { match: (c, a) => c === "git" && isGitDiff(a), result: DIFF_EMPTY },
+        { match: (c, a) => c === "git" && isGitStatus(a), result: { stdout: "", stderr: "", code: 0, killed: false } },
+      ],
+      { mixArgv: async () => ["devenv", "shell", "--", "mix"] },
+      config,
+    );
+    const report = await runChecks("complete", d);
+    expect(report.checks.map((c) => c.name)).toEqual(["mix precommit", "iron-laws (diff)"]);
+    expect(report.passed).toBe(true);
+    const routed = d.calls.find((c) => c.command === "devenv");
+    expect(routed?.args).toEqual(["shell", "--", "mix", "precommit"]);
+    expect(routed?.options?.timeout).toBe(1_800_000);
+    expect(d.calls.some((c) => c.command === "mix")).toBe(false);
+  });
+
+  test("configured non-mix entry runs verbatim", async () => {
+    const config: WorkbenchConfig = {
+      ...DEFAULT_CONFIG,
+      checks: { complete: [{ name: "script check", argv: ["scripts/check.sh"] }] },
+    };
+    const d = deps(
+      [
+        { match: (c) => c === "scripts/check.sh", result: { stdout: "ok", stderr: "", code: 0, killed: false } },
+        { match: (c, a) => c === "git" && isGitDiff(a), result: DIFF_EMPTY },
+        { match: (c, a) => c === "git" && isGitStatus(a), result: { stdout: "", stderr: "", code: 0, killed: false } },
+      ],
+      { mixArgv: async () => ["devenv", "shell", "--", "mix"] },
+      config,
+    );
+    const report = await runChecks("complete", d);
+    const call = d.calls.find((c) => c.command === "scripts/check.sh");
+    expect(call?.args).toEqual([]);
+    expect(call?.options?.timeout).toBe(600_000);
+    expect(report.passed).toBe(true);
   });
 
   test("default ladder runs format + compile + test + laws (credo only with config)", async () => {

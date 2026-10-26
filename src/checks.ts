@@ -160,10 +160,27 @@ async function focusedTestsCheck(deps: CheckDeps): Promise<CheckResult> {
   return runCommand(deps, "focused tests", argv[0]!, [...argv.slice(1), "test", ...unique], 900_000);
 }
 
-function completeCommands(deps: CheckDeps, mixArgv: string[]): Array<{ name: string; command: string; args: string[] }> {
+function completeCommands(
+  deps: CheckDeps,
+  mixArgv: string[],
+): Array<{ name: string; command: string; args: string[]; timeoutMs?: number }> {
   const configured = deps.config.checks.complete;
   if (configured && configured.length > 0) {
-    return configured.map((check) => ({ name: check.name, command: check.argv[0]!, args: check.argv.slice(1) }));
+    return configured.map((check) => {
+      if (check.argv[0] === "mix") {
+        // Route through the resolved mix invocation (e.g. devenv shell -- mix):
+        // bare mix dies outside devenv (no MIX_HOME/HEX_HOME). 30 min covers a
+        // full gate (vendorpm-keystone precommit ≈ 961s) where the 600s default
+        // would kill it.
+        return {
+          name: check.name,
+          command: mixArgv[0]!,
+          args: [...mixArgv.slice(1), ...check.argv.slice(1)],
+          timeoutMs: 1_800_000,
+        };
+      }
+      return { name: check.name, command: check.argv[0]!, args: check.argv.slice(1) };
+    });
   }
   const mix = (args: string[]) => ({ command: mixArgv[0]!, args: [...mixArgv.slice(1), ...args] });
   return [
@@ -190,7 +207,7 @@ export async function runChecks(level: CheckLevel, deps: CheckDeps): Promise<Che
     const configured = deps.config.checks.complete;
     if (configured && configured.length > 0) {
       for (const cmd of completeCommands(deps, argv)) {
-        checks.push(await runCommand(deps, cmd.name, cmd.command, cmd.args));
+        checks.push(await runCommand(deps, cmd.name, cmd.command, cmd.args, cmd.timeoutMs));
       }
     } else {
       checks.push(await mixRun("format", ["format", "--check-formatted"]));

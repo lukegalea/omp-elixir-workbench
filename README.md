@@ -56,6 +56,11 @@ keys ignored; malformed JSON falls back to defaults):
 }
 ```
 
+Configured `complete` entries whose argv starts with `mix` run through the
+project's resolved mix invocation (`devenv shell -- mix` on devenv projects,
+where bare `mix` is not on PATH) with a 30-minute timeout; other entries run
+verbatim with the 10-minute default.
+
 Environment overrides (highest precedence):
 
 - `OMP_EXWB_DAEMON_URL` — daemon base URL
