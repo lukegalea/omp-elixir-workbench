@@ -295,7 +295,7 @@ export function makeExDoctor(deps: ToolDeps, zod: ZodLike): ToolDefinition {
 
 /**
  * AGENTS.md/.claude-skills drift against the locked deps: the same check
- * keystone CI runs (scripts/usage-rules-check.sh). A mix.lock bump changes
+ * a host app's CI runs (e.g. scripts/usage-rules-check.sh). A mix.lock bump changes
  * what the generated sections should say; agents keep reasoning from the
  * stale text until someone runs the sync — surface it here first.
  */

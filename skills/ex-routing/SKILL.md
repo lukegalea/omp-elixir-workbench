@@ -32,7 +32,7 @@ compiled contract — never grep Ash DSL when a semantic tool exists.
 ## Name paths
 
 Every DSL entity is addressable: `Module/section/name`
-(`VendorpmKeystone.Lineage.Run/actions/digest` →
+(`MyApp.Lineage.Run/actions/digest` →
 `Run/actions/digest`; dot-boundary suffix matching works: `User/actions/read`).
 Policies are unnamed — address by occurrence: `Module/policies/policy[0]`.
 `ash_inspect` targets accept `Module`, `Module/action`, `path.ex:LINE`, or a

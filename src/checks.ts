@@ -170,7 +170,7 @@ function completeCommands(
       if (check.argv[0] === "mix") {
         // Route through the resolved mix invocation (e.g. devenv shell -- mix):
         // bare mix dies outside devenv (no MIX_HOME/HEX_HOME). 30 min covers a
-        // full gate (vendorpm-keystone precommit ≈ 961s) where the 600s default
+        // full gate (a large host app's precommit ≈ 961s) where the 600s default
         // would kill it.
         return {
           name: check.name,

@@ -101,7 +101,7 @@ of the `iex -S mix phx.server` VM).
 `ex_doctor` reports daemon reachability, source-freshness (`ash_reload`
 when stale), tidewave, the `expert` LSP binary, serena config, `mix`,
 the `ash_agent_tools` dep, and usage-rules sync drift
-(`MIX_ENV=dev mix usage_rules.sync --check` — the same gate keystone CI
+(`MIX_ENV=dev mix usage_rules.sync --check` — the same gate a host app's CI
 runs, surfaced before an agent reasons from stale AGENTS.md text). It
 never boots the application itself.
 
