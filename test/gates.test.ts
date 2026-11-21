@@ -19,7 +19,7 @@ beforeAll(async () => {
   );
   await writeFile(
     join(dir, "lib", "platform_resource.ex"),
-    "defmodule B do\n  use VendorpmKeystone.Platform.Resource\nend\n",
+    "defmodule B do\n  use MyApp.Platform.Resource\nend\n",
   );
   await writeFile(
     join(dir, "lib", "auth.ex"),
@@ -45,7 +45,7 @@ describe("classifyFile", () => {
     expect(c.lowRisk).toBe(false);
   });
 
-  test("use VendorpmKeystone.Platform.Resource -> ash", async () => {
+  test("use MyApp.Platform.Resource -> ash", async () => {
     const c = await classifyFile(join(dir, "lib", "platform_resource.ex"), dir);
     expect(c.kind).toBe("ash");
   });

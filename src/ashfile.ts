@@ -14,7 +14,7 @@ export interface ClassifiedFile {
   lowRisk: boolean;
 }
 
-/** use Ash.Resource / use Ash.Domain / use VendorpmKeystone.Platform.Resource / use AshAuthentication ... */
+/** use Ash.Resource / use Ash.Domain / use MyApp.Platform.Resource / use AshAuthentication ... */
 const ASH_USE_PATTERNS: RegExp[] = [
   /^\s*use\s+[A-Z][A-Za-z0-9_.]*(Resource|Domain)\s*(,|$)/m,
   /^\s*use\s+Ash(Postgres|Authentication|Policy|Oban)?/m,
